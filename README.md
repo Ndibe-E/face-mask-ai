@@ -1,5 +1,17 @@
-# Face Mask Recognition System😷
-**This AI system is built on two Convolutionary Neural Network Models🧠**
+# Face Mask Recognition System 😷
 
-The distinction comes with the dataset type utilized; Binary and multi-class datasets.  
-The binary datasets consist of **Masked** and **Unmasked** class labels, while the multi-class datasets consist of **Masked Correctly**, **Masked Incorrectly** and **Unmasked**.
+This project implements an AI-based face mask recognition system using **Convolutional Neural Networks (CNNs)** 🧠.
+
+The system supports **both binary and multi-class classification**, depending on the dataset used:
+
+- **Binary Classification**
+  - Masked
+  - Unmasked
+
+- **Multi-Class Classification**
+  - Masked Correctly
+  - Masked Incorrectly
+  - Unmasked
+
+A transfer learning approach based on **MobileNetV2** is used to improve performance while keeping the model efficient and lightweight.  
+The trained model can be deployed for real-time or embedded computer vision applications.
