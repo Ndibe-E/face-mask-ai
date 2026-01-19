@@ -1,0 +1,114 @@
+import os
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow import keras
+from keras import layers, models
+from PIL import Image
+from sklearn.model_selection import train_test_split
+
+
+# Simple loader for images placed next to this script in 'with_mask' and 'without_mask'
+BASE = os.path.dirname(os.path.abspath(__file__))
+WITH_DIR = os.path.join(BASE, 'with_mask')
+WITHOUT_DIR = os.path.join(BASE, 'without_mask')
+with_files = os.listdir(WITH_DIR)
+without_files = os.listdir(WITHOUT_DIR)
+
+print(f'Found: with_mask={len(with_files)}, without_mask={len(without_files)}')
+
+# Create labels
+labels_with = [1] * len(with_files)
+labels_without = [0] * len(without_files)
+labels = np.array(labels_with + labels_without)
+
+data = []
+#data preprocessing
+for img_name in with_files:
+    img_path = os.path.join(WITH_DIR, img_name)
+    img = Image.open(img_path).convert('RGB')
+    img = img.resize((128, 128))
+    data.append(np.array(img))
+
+for img_name in without_files:
+    img_path = os.path.join(WITHOUT_DIR, img_name)
+    img = Image.open(img_path).convert('RGB')
+    img = img.resize((128, 128))
+    data.append(np.array(img))
+
+x = np.array(data).astype('float32') / 255.0  # Normalize pixel values
+y = labels
+
+# Split the dataset
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, stratify=y)
+
+# Build the CNN model
+model = models.Sequential([
+    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(128, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Flatten(),
+    layers.Dense(128, activation='relu'),
+    layers.Dropout(0.5),
+    layers.Dense(2, activation='softmax')
+])
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.summary()
+
+
+# Use augmented generator for training
+history = model.fit(x_train, y_train, epochs=15, validation_data=(x_test, y_test))
+test_loss, test_acc = model.evaluate(x_test, y_test, verbose=2)
+print(f'Test accuracy: {test_acc:.4f}')
+
+model.save("mask_detector_cnn.h5")
+print("Model saved successfully.")
+
+
+# Plot some predictions
+predictions = model.predict(x_test[:15])
+predicted_labels = np.argmax(predictions, axis=1)
+plt.figure(figsize=(10, 5))
+for i in range(10):
+    plt.subplot(2, 5, i+1)
+    plt.imshow(x_test[i])
+    plt.title(f'Predict: {"With Mask" if predicted_labels[i] == 1 else "Without Mask"}')
+    plt.axis('off')
+    plt.tight_layout()
+plt.show()
+
+# Make a single prediction
+def predict_image(image_path):
+    img_bgr = cv2.imread(image_path)
+    # Convert to RGB (training used PIL RGB) and keep a copy for display
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    display_img = cv2.resize(img_rgb, (128, 128))
+
+    input_img = display_img.astype('float32') / 255.0
+    input_batch = np.expand_dims(input_img, axis=0)
+
+    probs = model.predict(input_batch, verbose=0)[0]
+    pred_class = int(np.argmax(probs))
+
+    print(f'Probabilities: {probs}')
+    print('Prediction: WITH MASK' if pred_class == 1 else 'Prediction: WITHOUT MASK')
+
+    plt.imshow(display_img)
+    plt.axis('off')
+    plt.show()
+
+
+# Example usage
+# predict_image
+while True:
+    img_path = input("Enter image path for prediction (or 'exit' to quit): ")
+    if img_path.lower() == 'exit':
+        break
+    if os.path.isfile(img_path):
+        predict_image(img_path)
+    else:
+        print("File not found. Please try again.")
